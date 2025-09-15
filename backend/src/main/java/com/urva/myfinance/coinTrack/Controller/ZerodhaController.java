@@ -34,14 +34,20 @@ public class ZerodhaController {
             if (apiKey == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("API key not set for user");
             }
-            
-            // Option 1: Basic URL - requires Zerodha Developer Console redirect URL to be set to http://localhost:8080/zerodha/callback
-            String url = "https://kite.zerodha.com/connect/login?api_key=" + apiKey + "&v=3&redirect_params=" + java.net.URLEncoder.encode("appUserId=" + appUserId, "UTF-8");
-            
-            // Option 2: If you prefer to specify redirect in URL (uncomment below and comment above)
-            // String callbackUrl = java.net.URLEncoder.encode("http://localhost:8080/zerodha/callback?appUserId=" + appUserId, "UTF-8");
-            // String url = "https://kite.zerodha.com/connect/login?api_key=" + apiKey + "&v=3&redirect_url=" + callbackUrl;
-            
+
+            // Option 1: Basic URL - requires Zerodha Developer Console redirect URL to be
+            // set to http://localhost:8080/zerodha/callback
+            String url = "https://kite.zerodha.com/connect/login?api_key=" + apiKey + "&v=3&redirect_params="
+                    + java.net.URLEncoder.encode("appUserId=" + appUserId, "UTF-8");
+
+            // Option 2: If you prefer to specify redirect in URL (uncomment below and
+            // comment above)
+            // String callbackUrl =
+            // java.net.URLEncoder.encode("http://localhost:8080/zerodha/callback?appUserId="
+            // + appUserId, "UTF-8");
+            // String url = "https://kite.zerodha.com/connect/login?api_key=" + apiKey +
+            // "&v=3&redirect_url=" + callbackUrl;
+
             return ResponseEntity.ok(url);
         } catch (UnsupportedEncodingException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -50,7 +56,8 @@ public class ZerodhaController {
     }
 
     /**
-     * Zerodha callback endpoint - automatically handles request_token and exchanges for access_token
+     * Zerodha callback endpoint - automatically handles request_token and exchanges
+     * for access_token
      * 
      * IMPORTANT: You must configure this URL in your Zerodha Developer Console:
      * 1. Go to https://developers.zerodha.com/apps
@@ -74,12 +81,12 @@ public class ZerodhaController {
 
             // Automatically exchange request_token for access_token
             zerodhaService.connectZerodha(request_token, appUserId);
-            
+
             // Redirect to frontend with success
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header("Location", "http://localhost:3000/zerodha?success=true&connected=true")
                     .build();
-                    
+
         } catch (ResponseStatusException e) {
             // Redirect to frontend with error details
             String errorMsg = java.net.URLEncoder.encode(e.getReason(), java.nio.charset.StandardCharsets.UTF_8);
@@ -88,19 +95,22 @@ public class ZerodhaController {
                     .build();
         } catch (IOException e) {
             // Redirect to frontend with IO error
-            String errorMsg = java.net.URLEncoder.encode("IO Error: " + e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+            String errorMsg = java.net.URLEncoder.encode("IO Error: " + e.getMessage(),
+                    java.nio.charset.StandardCharsets.UTF_8);
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header("Location", "http://localhost:3000/zerodha?error=" + errorMsg)
                     .build();
         } catch (KiteException e) {
             // Redirect to frontend with Kite API error
-            String errorMsg = java.net.URLEncoder.encode("Kite API Error: " + e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+            String errorMsg = java.net.URLEncoder.encode("Kite API Error: " + e.getMessage(),
+                    java.nio.charset.StandardCharsets.UTF_8);
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header("Location", "http://localhost:3000/zerodha?error=" + errorMsg)
                     .build();
         } catch (Exception e) {
             // Redirect to frontend with generic error
-            String errorMsg = java.net.URLEncoder.encode("Failed to connect Zerodha: " + e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+            String errorMsg = java.net.URLEncoder.encode("Failed to connect Zerodha: " + e.getMessage(),
+                    java.nio.charset.StandardCharsets.UTF_8);
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header("Location", "http://localhost:3000/zerodha?error=" + errorMsg)
                     .build();

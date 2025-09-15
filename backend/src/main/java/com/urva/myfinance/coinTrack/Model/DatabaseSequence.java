@@ -9,7 +9,8 @@ public class DatabaseSequence {
     private String id;
     private long seq;
 
-    public DatabaseSequence() {}
+    public DatabaseSequence() {
+    }
 
     public String getId() {
         return id;

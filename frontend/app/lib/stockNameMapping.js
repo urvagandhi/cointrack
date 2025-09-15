@@ -3,7 +3,7 @@ const stockNames = {
     // Stock symbols to company names
     'HDBFS': 'HDFC Financial Services Ltd',
     'TTML': 'Tata Teleservices (Maharashtra)',
-    
+
     // Add more stock mappings as needed
     'RELIANCE': 'Reliance Industries Ltd',
     'TCS': 'Tata Consultancy Services',
@@ -53,7 +53,7 @@ const fundNames = {
     'INF966L01AT0': 'Quant Large Cap Fund - Direct',
     'INF247L01445': 'Motilal Oswal Midcap Fund - Direct',
     'INF247L01BQ9': 'Motilal Oswal Nifty Microcap 250 Index Fund - Direct',
-    
+
     // Add more fund mappings as needed
     'INF247L01GQ7': 'SBI Large Cap Fund - Direct',
     'INF247L01BQ9': 'SBI Small Cap Fund - Direct',
@@ -63,17 +63,17 @@ const fundNames = {
 
 export function getShortCompanyName(symbol) {
     if (!symbol) return 'Unknown';
-    
+
     // Check if it's a fund ISIN first
     if (fundNames[symbol]) {
         return fundNames[symbol];
     }
-    
+
     // Check if it's a stock symbol
     if (stockNames[symbol]) {
         return stockNames[symbol];
     }
-    
+
     // Return the symbol itself if no mapping found
     return symbol;
 }
@@ -83,14 +83,14 @@ export function getFundName(fundName, tradingSymbol) {
     if (fundName && fundName !== tradingSymbol) {
         return fundName;
     }
-    
+
     // Otherwise, try to map from ISIN
     return getShortCompanyName(tradingSymbol);
 }
 
 export function formatFundName(fullFundName) {
     if (!fullFundName) return 'Unknown Fund';
-    
+
     // Clean up fund names for better display
     return fullFundName
         .replace(/\s*-\s*DIRECT PLAN$/i, ' - Direct')

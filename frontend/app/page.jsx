@@ -10,10 +10,10 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!loading) {
-      if (user) {
-        router.push('/dashboard');
-      } else {
+      if (!user) {
         router.push('/login');
+      } else {
+        router.push('/dashboard');
       }
     }
   }, [user, loading, router]);

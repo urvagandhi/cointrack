@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-    title: {
-      default: "coinTrack - Personal Finance Tracker",
-      template: "%s | coinTrack",
-    },
+  title: {
+    default: "coinTrack - Personal Finance Tracker",
+    template: "%s | coinTrack",
+  },
   description: "Track all your investments and personal finances at one place",
 };
 

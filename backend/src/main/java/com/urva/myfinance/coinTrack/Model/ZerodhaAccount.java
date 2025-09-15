@@ -26,9 +26,9 @@ public class ZerodhaAccount {
     private String zerodhaApiKey;
     private String zerodhaApiSecret;
 
-    private String kiteUserId;       // Zerodha's userId (e.g. "AB1234")
-    private String kiteAccessToken;  // Access token from Kite
-    private String kitePublicToken;  // Optional: useful for some API calls
+    private String kiteUserId; // Zerodha's userId (e.g. "AB1234")
+    private String kiteAccessToken; // Access token from Kite
+    private String kitePublicToken; // Optional: useful for some API calls
     private LocalDateTime kiteTokenCreatedAt; // When token was issued
 
     @CreatedDate

@@ -148,7 +148,7 @@ export default function Dashboard() {
                             </div>
                             <span className="text-xs text-gray-400">2 hours ago</span>
                         </div>
-                        
+
                         <div className="flex items-center">
                             <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
                             <div className="flex-1">
