@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.urva.myfinance.coinTrack.Service.JWTService;
+import com.urva.myfinance.coinTrack.Service.AuthService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,7 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     @Autowired
-    private JWTService jwtService;
+    private AuthService authService;
 
     @Autowired
     ApplicationContext applicationContext;
@@ -45,7 +45,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 token = authHeader.substring(7);
                 System.out.println("[JwtFilter] Extracted token: " + token);
                 try {
-                    username = jwtService.extractUsername(token);
+                    username = authService.extractUsername(token);
                     System.out.println("[JwtFilter] Extracted username: " + username);
                 } catch (Exception e) {
                     System.out.println("[JwtFilter] Failed to extract username: " + e.getMessage());
@@ -59,7 +59,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     UserDetails userDetails = applicationContext.getBean(UserDetailsService.class)
                             .loadUserByUsername(username);
                     System.out.println("[JwtFilter] Loaded user details for: " + username);
-                    if (jwtService.validateToken(token, userDetails)) {
+                    if (authService.validateToken(token, userDetails)) {
                         System.out.println("[JwtFilter] Token validated for user: " + username);
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());

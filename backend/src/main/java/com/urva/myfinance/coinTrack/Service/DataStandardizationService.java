@@ -491,42 +491,30 @@ public class DataStandardizationService {
 
     // Generic transform methods for unified API
     public List<StandardOrder> transformOrders(Object brokerData, String source) {
-        switch (source.toLowerCase()) {
-            case "zerodha":
-                return transformZerodhaOrders(brokerData);
-            case "angelone":
-                return transformAngelOneOrders(brokerData);
-            case "upstox":
-                return transformUpstoxOrders(brokerData);
-            default:
-                return new ArrayList<>();
-        }
+        return switch (source.toLowerCase()) {
+            case "zerodha" -> transformZerodhaOrders(brokerData);
+            case "angelone" -> transformAngelOneOrders(brokerData);
+            case "upstox" -> transformUpstoxOrders(brokerData);
+            default -> new ArrayList<>();
+        };
     }
 
     public List<StandardHolding> transformHoldings(Object brokerData, String source) {
-        switch (source.toLowerCase()) {
-            case "zerodha":
-                return transformZerodhaHoldings(brokerData);
-            case "angelone":
-                return transformAngelOneHoldings(brokerData);
-            case "upstox":
-                return transformUpstoxHoldings(brokerData);
-            default:
-                return new ArrayList<>();
-        }
+        return switch (source.toLowerCase()) {
+            case "zerodha" -> transformZerodhaHoldings(brokerData);
+            case "angelone" -> transformAngelOneHoldings(brokerData);
+            case "upstox" -> transformUpstoxHoldings(brokerData);
+            default -> new ArrayList<>();
+        };
     }
 
     public List<StandardPosition> transformPositions(Object brokerData, String source) {
-        switch (source.toLowerCase()) {
-            case "zerodha":
-                return transformZerodhaPositions(brokerData);
-            case "angelone":
-                return transformAngelOnePositions(brokerData);
-            case "upstox":
-                return transformUpstoxPositions(brokerData);
-            default:
-                return new ArrayList<>();
-        }
+        return switch (source.toLowerCase()) {
+            case "zerodha" -> transformZerodhaPositions(brokerData);
+            case "angelone" -> transformAngelOnePositions(brokerData);
+            case "upstox" -> transformUpstoxPositions(brokerData);
+            default -> new ArrayList<>();
+        };
     }
 
     // Individual broker transform methods for orders

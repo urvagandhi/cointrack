@@ -21,7 +21,7 @@ import com.urva.myfinance.coinTrack.Model.AngelOneAccount;
 import com.urva.myfinance.coinTrack.Repository.AngelOneAccountRepository;
 
 @Service
-public class AngelOneService {
+public class AngelOneService implements BrokerService {
 
     private final AngelOneAccountRepository angelOneRepo;
     private final RestTemplate restTemplate;
@@ -140,9 +140,9 @@ public class AngelOneService {
     }
 
     /**
-     * Refresh JWT token using refresh token
+     * Refresh JWT token using refresh token (internal method)
      */
-    public AngelOneAccount refreshToken(String appUserId) throws IOException {
+    public AngelOneAccount refreshTokenInternal(String appUserId) throws IOException {
         AngelOneAccount account = getAccountByAppUserId(appUserId);
 
         if (account.getRefreshToken() == null) {
@@ -197,7 +197,7 @@ public class AngelOneService {
      */
     private HttpHeaders getAuthenticatedHeaders(AngelOneAccount account) throws IOException {
         if (isTokenExpired(account)) {
-            account = refreshToken(account.getAppUserId());
+            account = refreshTokenInternal(account.getAppUserId());
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -368,5 +368,219 @@ public class AngelOneService {
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One LTP data response", e);
         }
+    }
+
+    // BrokerService interface implementations
+    @Override
+    public java.util.Map<String, Object> connect(String userId) {
+        try {
+            AngelOneAccount account = getAccountByAppUserId(userId);
+            if (account.getJwtToken() != null && !isTokenExpired(account)) {
+                return java.util.Map.of(
+                        "status", "success",
+                        "message", "Already connected",
+                        "userId", account.getAngelClientId(),
+                        "connected", true);
+            }
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", "Please use TOTP to login",
+                    "connected", false);
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", e.getMessage(),
+                    "connected", false);
+        }
+    }
+
+    @Override
+    public boolean isConnected(String userId) {
+        try {
+            AngelOneAccount account = getAccountByAppUserId(userId);
+            return account.getJwtToken() != null && !isTokenExpired(account);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> disconnect(String userId) {
+        try {
+            AngelOneAccount account = getAccountByAppUserId(userId);
+            account.setJwtToken(null);
+            account.setRefreshToken(null);
+            angelOneRepo.save(account);
+            return java.util.Map.of(
+                    "status", "success",
+                    "message", "Disconnected successfully");
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchHoldings(String userId) {
+        try {
+            Object holdings = getHoldings(userId);
+            return java.util.List.of(java.util.Map.of("data", holdings, "source", "angelone"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchOrders(String userId) {
+        try {
+            Object orders = getOrders(userId);
+            return java.util.List.of(java.util.Map.of("data", orders, "source", "angelone"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchPositions(String userId) {
+        try {
+            Object positions = getPositions(userId);
+            return java.util.List.of(java.util.Map.of("data", positions, "source", "angelone"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> placeOrder(String userId, java.util.Map<String, Object> orderDetails) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order placement not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> modifyOrder(String userId, String orderId, java.util.Map<String, Object> modificationDetails) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order modification not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> cancelOrder(String userId, String orderId) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order cancellation not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getAccountBalance(String userId) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Account balance not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getUserProfile(String userId) {
+        try {
+            AngelOneAccount account = getAccountByAppUserId(userId);
+            return java.util.Map.of(
+                    "userId", account.getAngelClientId(),
+                    "broker", "angelone",
+                    "connected", isConnected(userId),
+                    "apiKey", account.getAngelApiKey() != null ? "***" : null);
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getInstruments(String userId) {
+        return java.util.List.of(java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Instruments list not implemented yet"));
+    }
+
+    @Override
+    public java.util.Map<String, Object> getMarketData(String userId, java.util.List<String> instruments) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Market data not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getHistoricalData(String userId, String instrument, String fromDate, String toDate, String interval) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Historical data not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> refreshToken(String userId) {
+        try {
+            refreshTokenInternal(userId);
+            return java.util.Map.of(
+                    "status", "success",
+                    "message", "Token refreshed successfully");
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> getBrokerConfig(String userId) {
+        try {
+            AngelOneAccount account = getAccountByAppUserId(userId);
+            return java.util.Map.of(
+                    "broker", "angelone",
+                    "hasApiKey", account.getAngelApiKey() != null,
+                    "hasClientId", account.getAngelClientId() != null,
+                    "hasToken", account.getJwtToken() != null,
+                    "tokenExpired", isTokenExpired(account));
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> validateInstrument(String userId, String symbol) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Instrument validation not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getOrderBook(String userId, String instrument) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order book not implemented yet");
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getTradeHistory(String userId, String fromDate, String toDate) {
+        return java.util.List.of(java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Trade history not implemented yet"));
+    }
+
+    @Override
+    public String getBrokerName() {
+        return "angelone";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getServiceStatus() {
+        return java.util.Map.of(
+                "broker", "angelone",
+                "status", "active",
+                "version", "1.0",
+                "features", java.util.List.of("holdings", "positions", "orders", "ltp_data"));
     }
 }

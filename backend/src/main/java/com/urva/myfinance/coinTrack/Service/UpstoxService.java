@@ -21,7 +21,7 @@ import com.urva.myfinance.coinTrack.Model.UpstoxAccount;
 import com.urva.myfinance.coinTrack.Repository.UpstoxAccountRepository;
 
 @Service
-public class UpstoxService {
+public class UpstoxService implements BrokerService {
 
     private final UpstoxAccountRepository upstoxRepo;
     private final RestTemplate restTemplate;
@@ -308,9 +308,9 @@ public class UpstoxService {
     }
 
     /**
-     * Get historical candle data from Upstox
+     * Get historical candle data from Upstox (internal method)
      */
-    public Object getHistoricalData(String appUserId, String instrument_key, String interval, String to_date,
+    public Object getHistoricalDataInternal(String appUserId, String instrument_key, String interval, String to_date,
             String from_date) throws IOException {
         try {
             UpstoxAccount account = getAccountByAppUserId(appUserId);
@@ -388,5 +388,209 @@ public class UpstoxService {
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox logout response", e);
         }
+    }
+
+    // BrokerService interface implementations
+    @Override
+    public java.util.Map<String, Object> connect(String userId) {
+        try {
+            UpstoxAccount account = getAccountByAppUserId(userId);
+            if (account.getAccessToken() != null && !isTokenExpired(account)) {
+                return java.util.Map.of(
+                        "status", "success",
+                        "message", "Already connected",
+                        "userId", account.getUserId(),
+                        "connected", true);
+            }
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", "Please use authorization code to connect",
+                    "connected", false);
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", e.getMessage(),
+                    "connected", false);
+        }
+    }
+
+    @Override
+    public boolean isConnected(String userId) {
+        try {
+            UpstoxAccount account = getAccountByAppUserId(userId);
+            return account.getAccessToken() != null && !isTokenExpired(account);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> disconnect(String userId) {
+        try {
+            logout(userId);
+            return java.util.Map.of(
+                    "status", "success",
+                    "message", "Disconnected successfully");
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "status", "error",
+                    "message", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchHoldings(String userId) {
+        try {
+            Object holdings = getHoldings(userId);
+            return java.util.List.of(java.util.Map.of("data", holdings, "source", "upstox"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchOrders(String userId) {
+        try {
+            Object orders = getOrders(userId);
+            return java.util.List.of(java.util.Map.of("data", orders, "source", "upstox"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> fetchPositions(String userId) {
+        try {
+            Object positions = getPositions(userId);
+            return java.util.List.of(java.util.Map.of("data", positions, "source", "upstox"));
+        } catch (IOException e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return java.util.List.of(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> placeOrder(String userId, java.util.Map<String, Object> orderDetails) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order placement not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> modifyOrder(String userId, String orderId, java.util.Map<String, Object> modificationDetails) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order modification not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> cancelOrder(String userId, String orderId) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order cancellation not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getAccountBalance(String userId) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Account balance not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getUserProfile(String userId) {
+        try {
+            UpstoxAccount account = getAccountByAppUserId(userId);
+            return java.util.Map.of(
+                    "userId", account.getUserId(),
+                    "broker", "upstox",
+                    "connected", isConnected(userId),
+                    "apiKey", account.getUpstoxApiKey() != null ? "***" : null);
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getInstruments(String userId) {
+        return java.util.List.of(java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Instruments list not implemented yet"));
+    }
+
+    @Override
+    public java.util.Map<String, Object> getMarketData(String userId, java.util.List<String> instruments) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Market data not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getHistoricalData(String userId, String instrument, String fromDate, String toDate, String interval) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Historical data not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> refreshToken(String userId) {
+        return java.util.Map.of(
+                "status", "not_supported",
+                "message", "Upstox tokens need manual refresh with authorization code");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getBrokerConfig(String userId) {
+        try {
+            UpstoxAccount account = getAccountByAppUserId(userId);
+            return java.util.Map.of(
+                    "broker", "upstox",
+                    "hasApiKey", account.getUpstoxApiKey() != null,
+                    "hasApiSecret", account.getUpstoxApiSecret() != null,
+                    "hasToken", account.getAccessToken() != null,
+                    "tokenExpired", isTokenExpired(account));
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> validateInstrument(String userId, String symbol) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Instrument validation not implemented yet");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getOrderBook(String userId, String instrument) {
+        return java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Order book not implemented yet");
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getTradeHistory(String userId, String fromDate, String toDate) {
+        return java.util.List.of(java.util.Map.of(
+                "status", "not_implemented",
+                "message", "Trade history not implemented yet"));
+    }
+
+    @Override
+    public String getBrokerName() {
+        return "upstox";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getServiceStatus() {
+        return java.util.Map.of(
+                "broker", "upstox",
+                "status", "active",
+                "version", "1.0",
+                "features", java.util.List.of("holdings", "positions", "orders", "ltp_data", "logout"));
     }
 }

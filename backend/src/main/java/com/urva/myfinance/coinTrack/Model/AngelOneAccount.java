@@ -1,46 +1,68 @@
 package com.urva.myfinance.coinTrack.Model;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Document(collection = "angelone_accounts")
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class AngelOneAccount {
-    @Id
-    private String id;
+public class AngelOneAccount extends BrokerAccount {
 
-    private String appUserId; // Reference to your User._id
-
-    // Per-user Angel One API credentials
+    // Angel One-specific API credentials
     private String angelApiKey;
     private String angelClientId;
     private String angelPin;
     private String angelTotp; // Optional: for two-factor authentication
 
+    // Angel One-specific token fields
     private String jwtToken; // JWT token from Angel One
     private String refreshToken; // Refresh token for JWT renewal
-    private LocalDateTime tokenCreatedAt; // When token was issued
-    private LocalDateTime tokenExpiresAt; // When token expires
-
-    // Additional Angel One specific fields
-    private String userId; // Angel One's client code
     private String sessionToken; // Session token for feed subscription
-    private Boolean isActive; // Whether the connection is active
 
-    @CreatedDate
-    private LocalDate createdAt;
+    // Note: angelClientId can be mapped to userId from BrokerAccount
+    // Note: tokenCreatedAt and tokenExpiresAt are inherited from BrokerAccount
 
-    @LastModifiedDate
-    private LocalDate updatedAt;
+    @Override
+    public String getBrokerName() {
+        return "angelone";
+    }
+
+    @Override
+    public boolean hasCredentials() {
+        return angelApiKey != null && angelClientId != null && angelPin != null;
+    }
+
+    @Override
+    public boolean hasValidToken() {
+        return jwtToken != null && !isTokenExpired();
+    }
+
+    // Convenience getters/setters for inherited fields with AngelOne-specific names
+    public String getAngelUserId() {
+        return getUserId();
+    }
+
+    public void setAngelUserId(String angelUserId) {
+        setUserId(angelUserId);
+    }
+
+    // Map angelClientId to the base userId field as well for consistency
+    public void setAngelClientId(String angelClientId) {
+        this.angelClientId = angelClientId;
+        setUserId(angelClientId); // Keep userId in sync
+    }
+
+    @Override
+    public void setUserId(String userId) {
+        super.setUserId(userId);
+        if (this.angelClientId == null) {
+            this.angelClientId = userId;
+        }
+    }
 }

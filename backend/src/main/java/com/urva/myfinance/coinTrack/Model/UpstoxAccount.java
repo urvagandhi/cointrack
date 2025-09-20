@@ -1,49 +1,59 @@
 package com.urva.myfinance.coinTrack.Model;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Document(collection = "upstox_accounts")
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class UpstoxAccount {
-    @Id
-    private String id;
+public class UpstoxAccount extends BrokerAccount {
 
-    private String appUserId; // Reference to your User._id
-
-    // Per-user Upstox API credentials
+    // Upstox-specific API credentials
     private String upstoxApiKey;
     private String upstoxApiSecret;
     private String upstoxRedirectUri;
 
+    // Upstox-specific token fields
     private String accessToken; // Access token from Upstox OAuth2
     private String refreshToken; // Refresh token for access token renewal
-    private LocalDateTime tokenCreatedAt; // When token was issued
-    private LocalDateTime tokenExpiresAt; // When token expires
 
     // Additional Upstox specific fields
-    private String userId; // Upstox user ID
     private String userName; // Upstox user name
     private String userType; // Individual or business account
     private String email; // User email
     private String exchangeInfo; // Enabled exchanges (NSE, BSE, MCX, etc.)
     private String products; // Enabled products (CNC, MIS, NRML, etc.)
-    private Boolean isActive; // Whether the connection is active
 
-    @CreatedDate
-    private LocalDate createdAt;
+    // Note: userId, tokenCreatedAt, tokenExpiresAt, isActive are inherited from
+    // BrokerAccount
 
-    @LastModifiedDate
-    private LocalDate updatedAt;
+    @Override
+    public String getBrokerName() {
+        return "upstox";
+    }
+
+    @Override
+    public boolean hasCredentials() {
+        return upstoxApiKey != null && upstoxApiSecret != null;
+    }
+
+    @Override
+    public boolean hasValidToken() {
+        return accessToken != null && !isTokenExpired();
+    }
+
+    // Convenience getters/setters for inherited fields with Upstox-specific names
+    public String getUpstoxUserId() {
+        return getUserId();
+    }
+
+    public void setUpstoxUserId(String upstoxUserId) {
+        setUserId(upstoxUserId);
+    }
 }

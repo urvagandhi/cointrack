@@ -23,9 +23,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 @Service
-public class WebSocketManager {
+public class WebSocketService {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketService.class);
 
     @Autowired
     private NSEWebSocketConnector nseConnector;
@@ -41,12 +41,12 @@ public class WebSocketManager {
     private volatile boolean isRunning = false;
 
     /**
-     * Initialize the WebSocket Manager
+     * Initialize the WebSocket Service
      */
     @PostConstruct
     public void initialize() {
         try {
-            logger.info("Initializing WebSocket Manager...");
+            logger.info("Initializing WebSocket Service...");
 
             // Initialize connectors
             nseConnector.initialize();
@@ -59,13 +59,13 @@ public class WebSocketManager {
             scheduleHealthMonitoring();
 
             isRunning = true;
-            logger.info("WebSocket Manager initialized successfully");
+            logger.info("WebSocket Service initialized successfully");
 
             // Subscribe to some default symbols
             subscribeToDefaultSymbols();
 
         } catch (Exception e) {
-            logger.error("Failed to initialize WebSocket Manager", e);
+            logger.error("Failed to initialize WebSocket Service", e);
         }
     }
 
@@ -200,7 +200,7 @@ public class WebSocketManager {
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 Map<String, Object> status = getConnectionStatus();
-                logger.info("WebSocket Manager Health: NSE={}, BSE={}, Symbols={}, Records={}",
+                logger.info("WebSocket Service Health: NSE={}, BSE={}, Symbols={}, Records={}",
                         status.get("nseConnected"),
                         status.get("bseConnected"),
                         status.get("subscribedSymbols"),
@@ -290,11 +290,11 @@ public class WebSocketManager {
     }
 
     /**
-     * Shutdown the WebSocket Manager
+     * Shutdown the WebSocket Service
      */
     @PreDestroy
     public void shutdown() {
-        logger.info("Shutting down WebSocket Manager...");
+        logger.info("Shutting down WebSocket Service...");
 
         isRunning = false;
 
@@ -307,10 +307,10 @@ public class WebSocketManager {
                 scheduler.shutdownNow();
             }
 
-            logger.info("WebSocket Manager shutdown completed");
+            logger.info("WebSocket Service shutdown completed");
 
         } catch (Exception e) {
-            logger.error("Error during WebSocket Manager shutdown", e);
+            logger.error("Error during WebSocket Service shutdown", e);
             scheduler.shutdownNow();
         }
     }

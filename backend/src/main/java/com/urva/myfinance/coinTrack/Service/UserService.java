@@ -10,7 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.urva.myfinance.coinTrack.DTO.LoginResponse;
+import com.urva.myfinance.coinTrack.DTO.AuthResponse;
 import com.urva.myfinance.coinTrack.Model.User;
 import com.urva.myfinance.coinTrack.Repository.UserRepository;
 
@@ -20,14 +20,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authManager;
-    private final JWTService jwtService;
+    private final AuthService authService;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-            AuthenticationManager authManager, JWTService jwtService) {
+            AuthenticationManager authManager, AuthService authService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authManager = authManager;
-        this.jwtService = jwtService;
+        this.authService = authService;
     }
 
     public List<User> getAllUsers() {
@@ -106,7 +106,7 @@ public class UserService {
         }
     }
 
-    public LoginResponse verifyUser(User user) {
+    public AuthResponse verifyUser(User user) {
         try {
             // Find user by username or email
             User foundUser = userRepository.findByUsername(user.getUsername());
@@ -122,8 +122,8 @@ public class UserService {
             Authentication authentication = authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(foundUser.getUsername(), user.getPassword()));
             if (authentication.isAuthenticated()) {
-                String token = jwtService.generateToken(authentication);
-                return new LoginResponse(token, foundUser);
+                String token = authService.generateToken(authentication);
+                return new AuthResponse(token, foundUser);
             } else {
                 throw new RuntimeException("Invalid username or password");
             }
@@ -134,7 +134,7 @@ public class UserService {
 
     public User getUserByToken(String token) {
         try {
-            String username = jwtService.extractUsername(token);
+            String username = authService.extractUsername(token);
             return userRepository.findByUsername(username);
         } catch (Exception e) {
             throw new RuntimeException("Error extracting user from token: " + e.getMessage(), e);
@@ -143,7 +143,7 @@ public class UserService {
 
     public boolean isTokenValid(String token) {
         try {
-            String username = jwtService.extractUsername(token);
+            String username = authService.extractUsername(token);
             User user = userRepository.findByUsername(username);
             if (user != null) {
                 // Create UserDetails-like object for validation
@@ -153,7 +153,7 @@ public class UserService {
                         .password(user.getPassword())
                         .authorities("USER")
                         .build();
-                return jwtService.validateToken(token, userDetails);
+                return authService.validateToken(token, userDetails);
             }
             return false;
         } catch (Exception e) {
