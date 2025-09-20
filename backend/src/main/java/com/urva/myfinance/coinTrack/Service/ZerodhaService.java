@@ -8,14 +8,14 @@ import org.json.JSONException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.urva.myfinance.coinTrack.Model.ZerodhaAccount;
 import com.urva.myfinance.coinTrack.Repository.ZerodhaAccountRepository;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
+import com.urva.myfinance.coinTrack.UnauthorizedException;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 
@@ -23,10 +23,11 @@ import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 public class ZerodhaService implements BrokerService {
     /**
      * Get ZerodhaAccount by appUserId
+     * Throws ResourceNotFoundException if account not found
      */
     public ZerodhaAccount getAccountByAppUserId(String appUserId) {
         return zerodhaRepo.findByAppUserId(appUserId)
-                .orElseThrow(() -> new RuntimeException("No Zerodha account for user: " + appUserId));
+                .orElseThrow(() -> new ResourceNotFoundException("Zerodha account not found for user: " + appUserId));
     }
     /**
      * Set or update Zerodha API key/secret for a user
@@ -62,7 +63,7 @@ public class ZerodhaService implements BrokerService {
             String apiKey = account.getZerodhaApiKey();
             String apiSecret = account.getZerodhaApiSecret();
             if (apiKey == null || apiSecret == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Zerodha API key/secret not set for user.");
+                throw new UnauthorizedException("Zerodha API key/secret not set for user: " + appUserId);
             }
 
             KiteConnect kite = new KiteConnect(apiKey);
@@ -78,8 +79,7 @@ public class ZerodhaService implements BrokerService {
 
             return zerodhaRepo.save(account);
         } catch (KiteException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Invalid or expired requestToken. Please re-login.", e);
+            throw new UnauthorizedException("Invalid or expired requestToken. Please re-login.", e);
         }
     }
 
@@ -95,19 +95,19 @@ public class ZerodhaService implements BrokerService {
     public KiteConnect clientFor(String appUserId) {
         ZerodhaAccount account = zerodhaRepo.findByAppUserId(appUserId)
                 .orElseThrow(
-                        () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Zerodha not linked for this user"));
+                        () -> new UnauthorizedException("Zerodha not linked for this user"));
 
         if (account.getKiteAccessToken() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No active token. Please login again.");
+            throw new UnauthorizedException("No active token. Please login again.");
         }
 
         if (isTokenExpired(account)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Zerodha session expired. Please relogin.");
+            throw new UnauthorizedException("Zerodha session expired. Please relogin.");
         }
 
             String apiKey = account.getZerodhaApiKey();
             if (apiKey == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Zerodha API key not set for this user.");
+                throw new IllegalArgumentException("Zerodha API key not set for this user.");
             }
             KiteConnect kite = new KiteConnect(apiKey);
         kite.setUserId(account.getKiteUserId());

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import com.urva.myfinance.coinTrack.DTO.AuthResponse;
 import com.urva.myfinance.coinTrack.Model.User;
 import com.urva.myfinance.coinTrack.Repository.UserRepository;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
+import com.urva.myfinance.coinTrack.UnauthorizedException;
 
 @Service
 public class UserService {
@@ -41,7 +43,10 @@ public class UserService {
     public User getUserById(String id) {
         try {
             Optional<User> user = userRepository.findById(id);
-            return user.orElse(null);
+            if (user.isPresent()) {
+                return user.get();
+            }
+            throw new ResourceNotFoundException("User", id);
         } catch (Exception e) {
             throw new RuntimeException("Error fetching user by id: " + id + ". " + e.getMessage(), e);
         }
@@ -75,19 +80,18 @@ public class UserService {
 
                 return userRepository.save(existingUser);
             }
-            return null; // User not found
+            throw new ResourceNotFoundException("User", id);
         } catch (Exception e) {
             throw new RuntimeException("Error updating user with id: " + id + ". " + e.getMessage(), e);
         }
     }
 
-    public boolean deleteUser(String id) {
+    public void deleteUser(String id) {
         try {
             if (userRepository.existsById(id)) {
                 userRepository.deleteById(id);
-                return true;
             } else {
-                return false; // User not found
+                throw new ResourceNotFoundException("User", id);
             }
         } catch (Exception e) {
             throw new RuntimeException("Error deleting user with id: " + id + ". " + e.getMessage(), e);
@@ -97,7 +101,7 @@ public class UserService {
     public User registerUser(User user) {
         try {
             if (user.getUsername() == null || user.getPassword() == null) {
-                return null; // Invalid user
+                throw new IllegalArgumentException("Username and password are required");
             }
             user.setPassword(passwordEncoder.encode(user.getPassword()));
             return userRepository.save(user);
@@ -115,7 +119,7 @@ public class UserService {
             }
             
             if (foundUser == null) {
-                throw new RuntimeException("Invalid username or password");
+                throw new UnauthorizedException("Invalid username or password");
             }
 
             // Use the actual username for authentication
@@ -125,10 +129,10 @@ public class UserService {
                 String token = authService.generateToken(authentication);
                 return new AuthResponse(token, foundUser);
             } else {
-                throw new RuntimeException("Invalid username or password");
+                throw new UnauthorizedException("Invalid username or password");
             }
         } catch (AuthenticationException e) {
-            throw new RuntimeException("Invalid username or password");
+            throw new UnauthorizedException("Invalid username or password");
         }
     }
 

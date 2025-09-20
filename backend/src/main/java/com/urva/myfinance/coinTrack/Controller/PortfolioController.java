@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.urva.myfinance.coinTrack.DTO.PortfolioResponse;
 import com.urva.myfinance.coinTrack.Service.BrokerService;
 import com.urva.myfinance.coinTrack.Service.DataStandardizationService;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
 
 @RestController
 @RequestMapping("/api/portfolio")
@@ -47,51 +48,44 @@ public class PortfolioController {
         response.setUserId(userId);
         response.setGeneratedAt(LocalDateTime.now());
 
-        try {
-            PortfolioResponse.PortfolioSummary summary = new PortfolioResponse.PortfolioSummary();
-            double totalValue = 0.0;
-            double totalInvestment = 0.0;
-            double totalPnl = 0.0;
+        PortfolioResponse.PortfolioSummary summary = new PortfolioResponse.PortfolioSummary();
+        double totalValue = 0.0;
+        double totalInvestment = 0.0;
+        double totalPnl = 0.0;
 
-            // Aggregate data from all broker services
-            for (BrokerService brokerService : brokerServices.values()) {
-                try {
-                    List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
-                    List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
-                            .transformHoldings(holdings, brokerService.getBrokerName());
+        // Aggregate data from all broker services
+        for (BrokerService brokerService : brokerServices.values()) {
+            try {
+                List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
+                List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
+                        .transformHoldings(holdings, brokerService.getBrokerName());
 
-                    for (DataStandardizationService.StandardHolding holding : standardHoldings) {
-                        if (holding.totalValue != null) {
-                            totalValue += holding.totalValue;
-                        }
-                        if (holding.pnl != null) {
-                            totalPnl += holding.pnl;
-                        }
-                        // Calculate investment (this would need more complex logic in real
-                        // implementation)
-                        if (holding.averagePrice != null && holding.quantity != null) {
-                            totalInvestment += (holding.averagePrice * holding.quantity);
-                        }
+                for (DataStandardizationService.StandardHolding holding : standardHoldings) {
+                    if (holding.totalValue != null) {
+                        totalValue += holding.totalValue;
                     }
-                } catch (Exception e) {
-                    logger.warn("Failed to fetch holdings from {}: {}", brokerService.getBrokerName(), e.getMessage());
+                    if (holding.pnl != null) {
+                        totalPnl += holding.pnl;
+                    }
+                    // Calculate investment (this would need more complex logic in real
+                    // implementation)
+                    if (holding.averagePrice != null && holding.quantity != null) {
+                        totalInvestment += (holding.averagePrice * holding.quantity);
+                    }
                 }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch holdings from {}: {}", brokerService.getBrokerName(), e.getMessage());
             }
-
-            summary.setTotalValue(totalValue);
-            summary.setTotalInvestment(totalInvestment);
-            summary.setTotalPnl(totalPnl);
-            summary.setTotalPnlPercentage(totalInvestment > 0 ? (totalPnl / totalInvestment) * 100 : 0.0);
-
-            response.setSummary(summary);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting portfolio value", e);
-            response.setErrors(List.of("Failed to get portfolio value: " + e.getMessage()));
-            return ResponseEntity.internalServerError().body(response);
         }
+
+        summary.setTotalValue(totalValue);
+        summary.setTotalInvestment(totalInvestment);
+        summary.setTotalPnl(totalPnl);
+        summary.setTotalPnlPercentage(totalInvestment > 0 ? (totalPnl / totalInvestment) * 100 : 0.0);
+
+        response.setSummary(summary);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -104,73 +98,66 @@ public class PortfolioController {
         response.setUserId(userId);
         response.setGeneratedAt(LocalDateTime.now());
 
-        try {
-            // Process each broker asynchronously
-            List<CompletableFuture<PortfolioResponse.BrokerPortfolio>> futures = brokerServices.entrySet().stream()
-                    .map(entry -> CompletableFuture.supplyAsync(() -> {
-                        String brokerName = entry.getKey();
-                        BrokerService brokerService = entry.getValue();
+        // Process each broker asynchronously
+        List<CompletableFuture<PortfolioResponse.BrokerPortfolio>> futures = brokerServices.entrySet().stream()
+                .map(entry -> CompletableFuture.supplyAsync(() -> {
+                    String brokerName = entry.getKey();
+                    BrokerService brokerService = entry.getValue();
 
-                        PortfolioResponse.BrokerPortfolio brokerPortfolio = new PortfolioResponse.BrokerPortfolio();
-                        brokerPortfolio.setBrokerName(brokerName);
-                        brokerPortfolio.setLastUpdated(LocalDateTime.now());
+                    PortfolioResponse.BrokerPortfolio brokerPortfolio = new PortfolioResponse.BrokerPortfolio();
+                    brokerPortfolio.setBrokerName(brokerName);
+                    brokerPortfolio.setLastUpdated(LocalDateTime.now());
 
-                        try {
-                            brokerPortfolio.setStatus("connected");
+                    try {
+                        brokerPortfolio.setStatus("connected");
 
-                            // Fetch and convert holdings
-                            List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
-                            List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
-                                    .transformHoldings(holdings, brokerName);
-                            brokerPortfolio.setHoldings(convertToPortfolioHoldings(standardHoldings, brokerName));
+                        // Fetch and convert holdings
+                        List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
+                        List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
+                                .transformHoldings(holdings, brokerName);
+                        brokerPortfolio.setHoldings(convertToPortfolioHoldings(standardHoldings, brokerName));
 
-                            // Fetch and convert positions
-                            List<Map<String, Object>> positions = brokerService.fetchPositions(userId);
-                            List<DataStandardizationService.StandardPosition> standardPositions = dataStandardizationService
-                                    .transformPositions(positions, brokerName);
-                            brokerPortfolio.setPositions(convertToPortfolioPositions(standardPositions, brokerName));
+                        // Fetch and convert positions
+                        List<Map<String, Object>> positions = brokerService.fetchPositions(userId);
+                        List<DataStandardizationService.StandardPosition> standardPositions = dataStandardizationService
+                                .transformPositions(positions, brokerName);
+                        brokerPortfolio.setPositions(convertToPortfolioPositions(standardPositions, brokerName));
 
-                            // Fetch and convert orders
-                            List<Map<String, Object>> orders = brokerService.fetchOrders(userId);
-                            List<DataStandardizationService.StandardOrder> standardOrders = dataStandardizationService
-                                    .transformOrders(orders, brokerName);
-                            brokerPortfolio.setOrders(convertToPortfolioOrders(standardOrders, brokerName));
+                        // Fetch and convert orders
+                        List<Map<String, Object>> orders = brokerService.fetchOrders(userId);
+                        List<DataStandardizationService.StandardOrder> standardOrders = dataStandardizationService
+                                .transformOrders(orders, brokerName);
+                        brokerPortfolio.setOrders(convertToPortfolioOrders(standardOrders, brokerName));
 
-                            // Calculate totals
-                            double totalValue = standardHoldings.stream()
-                                    .mapToDouble(h -> h.totalValue != null ? h.totalValue : 0.0)
-                                    .sum();
-                            double totalPnl = standardHoldings.stream()
-                                    .mapToDouble(h -> h.pnl != null ? h.pnl : 0.0)
-                                    .sum();
+                        // Calculate totals
+                        double totalValue = standardHoldings.stream()
+                                .mapToDouble(h -> h.totalValue != null ? h.totalValue : 0.0)
+                                .sum();
+                        double totalPnl = standardHoldings.stream()
+                                .mapToDouble(h -> h.pnl != null ? h.pnl : 0.0)
+                                .sum();
 
-                            brokerPortfolio.setTotalValue(totalValue);
-                            brokerPortfolio.setTotalPnl(totalPnl);
+                        brokerPortfolio.setTotalValue(totalValue);
+                        brokerPortfolio.setTotalPnl(totalPnl);
 
-                        } catch (Exception e) {
-                            logger.warn("Failed to fetch portfolio from {}: {}", brokerName, e.getMessage());
-                            brokerPortfolio.setStatus("error");
-                            brokerPortfolio.setErrorMessage("Failed to fetch data: " + e.getMessage());
-                        }
+                    } catch (Exception e) {
+                        logger.warn("Failed to fetch portfolio from {}: {}", brokerName, e.getMessage());
+                        brokerPortfolio.setStatus("error");
+                        brokerPortfolio.setErrorMessage("Failed to fetch data: " + e.getMessage());
+                    }
 
-                        return brokerPortfolio;
-                    }, executorService))
-                    .toList();
+                    return brokerPortfolio;
+                }, executorService))
+                .toList();
 
-            // Wait for all to complete
-            List<PortfolioResponse.BrokerPortfolio> brokerPortfolios = futures.stream()
-                    .map(CompletableFuture::join)
-                    .toList();
+        // Wait for all to complete
+        List<PortfolioResponse.BrokerPortfolio> brokerPortfolios = futures.stream()
+                .map(CompletableFuture::join)
+                .toList();
 
-            response.setBrokerPortfolios(brokerPortfolios);
+        response.setBrokerPortfolios(brokerPortfolios);
 
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting portfolio details", e);
-            response.setErrors(List.of("Failed to get portfolio details: " + e.getMessage()));
-            return ResponseEntity.internalServerError().body(response);
-        }
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -186,54 +173,46 @@ public class PortfolioController {
         response.setUserId(userId);
         response.setGeneratedAt(LocalDateTime.now());
 
-        try {
-            BrokerService brokerService = brokerServices.get(brokerName.toLowerCase());
-            if (brokerService == null) {
-                response.setErrors(List.of("Unsupported broker: " + brokerName));
-                return ResponseEntity.badRequest().body(response);
-            }
-
-            PortfolioResponse.BrokerPortfolio brokerPortfolio = new PortfolioResponse.BrokerPortfolio();
-            brokerPortfolio.setBrokerName(brokerName);
-            brokerPortfolio.setStatus("connected");
-            brokerPortfolio.setLastUpdated(LocalDateTime.now());
-
-            // Fetch and convert data
-            List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
-            List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
-                    .transformHoldings(holdings, brokerName);
-            brokerPortfolio.setHoldings(convertToPortfolioHoldings(standardHoldings, brokerName));
-
-            List<Map<String, Object>> positions = brokerService.fetchPositions(userId);
-            List<DataStandardizationService.StandardPosition> standardPositions = dataStandardizationService
-                    .transformPositions(positions, brokerName);
-            brokerPortfolio.setPositions(convertToPortfolioPositions(standardPositions, brokerName));
-
-            List<Map<String, Object>> orders = brokerService.fetchOrders(userId);
-            List<DataStandardizationService.StandardOrder> standardOrders = dataStandardizationService
-                    .transformOrders(orders, brokerName);
-            brokerPortfolio.setOrders(convertToPortfolioOrders(standardOrders, brokerName));
-
-            // Calculate totals
-            double totalValue = standardHoldings.stream()
-                    .mapToDouble(h -> h.totalValue != null ? h.totalValue : 0.0)
-                    .sum();
-            double totalPnl = standardHoldings.stream()
-                    .mapToDouble(h -> h.pnl != null ? h.pnl : 0.0)
-                    .sum();
-
-            brokerPortfolio.setTotalValue(totalValue);
-            brokerPortfolio.setTotalPnl(totalPnl);
-
-            response.setBrokerPortfolios(List.of(brokerPortfolio));
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting broker portfolio for {}", brokerName, e);
-            response.setErrors(List.of("Failed to get broker portfolio: " + e.getMessage()));
-            return ResponseEntity.internalServerError().body(response);
+        BrokerService brokerService = brokerServices.get(brokerName.toLowerCase());
+        if (brokerService == null) {
+            throw new ResourceNotFoundException("Broker", brokerName);
         }
+
+        PortfolioResponse.BrokerPortfolio brokerPortfolio = new PortfolioResponse.BrokerPortfolio();
+        brokerPortfolio.setBrokerName(brokerName);
+        brokerPortfolio.setStatus("connected");
+        brokerPortfolio.setLastUpdated(LocalDateTime.now());
+
+        // Fetch and convert data
+        List<Map<String, Object>> holdings = brokerService.fetchHoldings(userId);
+        List<DataStandardizationService.StandardHolding> standardHoldings = dataStandardizationService
+                .transformHoldings(holdings, brokerName);
+        brokerPortfolio.setHoldings(convertToPortfolioHoldings(standardHoldings, brokerName));
+
+        List<Map<String, Object>> positions = brokerService.fetchPositions(userId);
+        List<DataStandardizationService.StandardPosition> standardPositions = dataStandardizationService
+                .transformPositions(positions, brokerName);
+        brokerPortfolio.setPositions(convertToPortfolioPositions(standardPositions, brokerName));
+
+        List<Map<String, Object>> orders = brokerService.fetchOrders(userId);
+        List<DataStandardizationService.StandardOrder> standardOrders = dataStandardizationService
+                .transformOrders(orders, brokerName);
+        brokerPortfolio.setOrders(convertToPortfolioOrders(standardOrders, brokerName));
+
+        // Calculate totals
+        double totalValue = standardHoldings.stream()
+                .mapToDouble(h -> h.totalValue != null ? h.totalValue : 0.0)
+                .sum();
+        double totalPnl = standardHoldings.stream()
+                .mapToDouble(h -> h.pnl != null ? h.pnl : 0.0)
+                .sum();
+
+        brokerPortfolio.setTotalValue(totalValue);
+        brokerPortfolio.setTotalPnl(totalPnl);
+
+        response.setBrokerPortfolios(List.of(brokerPortfolio));
+
+        return ResponseEntity.ok(response);
     }
 
     // Helper methods to convert between DTOs

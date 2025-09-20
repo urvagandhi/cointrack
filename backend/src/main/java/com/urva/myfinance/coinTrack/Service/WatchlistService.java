@@ -15,6 +15,7 @@ import com.urva.myfinance.coinTrack.Model.LiveMarketData;
 import com.urva.myfinance.coinTrack.Model.Watchlist;
 import com.urva.myfinance.coinTrack.Repository.LiveMarketDataRepository;
 import com.urva.myfinance.coinTrack.Repository.WatchlistRepository;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
 
 @Service
 public class WatchlistService {
@@ -68,7 +69,7 @@ public class WatchlistService {
     public Watchlist updateWatchlist(String watchlistId, String name, String description, String color) {
         Optional<Watchlist> watchlistOpt = watchlistRepository.findById(watchlistId);
         if (watchlistOpt.isEmpty()) {
-            throw new RuntimeException("Watchlist not found: " + watchlistId);
+            throw new ResourceNotFoundException("Watchlist", watchlistId);
         }
 
         Watchlist watchlist = watchlistOpt.get();

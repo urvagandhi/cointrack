@@ -15,10 +15,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.urva.myfinance.coinTrack.Model.AngelOneAccount;
 import com.urva.myfinance.coinTrack.Repository.AngelOneAccountRepository;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
+import com.urva.myfinance.coinTrack.UnauthorizedException;
 
 @Service
 public class AngelOneService implements BrokerService {
@@ -48,7 +49,7 @@ public class AngelOneService implements BrokerService {
      */
     public AngelOneAccount getAccountByAppUserId(String appUserId) {
         return angelOneRepo.findByAppUserId(appUserId)
-                .orElseThrow(() -> new RuntimeException("No Angel One account for user: " + appUserId));
+                .orElseThrow(() -> new ResourceNotFoundException("AngelOneAccount", appUserId));
     }
 
     /**
@@ -70,16 +71,14 @@ public class AngelOneService implements BrokerService {
     public AngelOneAccount loginToAngelOne(String appUserId, String totp) throws IOException {
         try {
             AngelOneAccount account = angelOneRepo.findByAppUserId(appUserId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Angel One credentials not set for user."));
+                    .orElseThrow(() -> new IllegalArgumentException("Angel One credentials not set for user."));
 
             String apiKey = account.getAngelApiKey();
             String clientId = account.getAngelClientId();
             String pin = account.getAngelPin();
 
             if (apiKey == null || clientId == null || pin == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Angel One API key, client ID, or PIN not set for user.");
+                throw new IllegalArgumentException("Angel One API key, client ID, or PIN not set for user.");
             }
 
             // Prepare login request
@@ -119,11 +118,10 @@ public class AngelOneService implements BrokerService {
 
                     return angelOneRepo.save(account);
                 } else {
-                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                            "Angel One login failed: " + responseJson.getString("message"));
+                    throw new UnauthorizedException("Angel One login failed: " + responseJson.getString("message"));
                 }
             } else {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Angel One login failed");
+                throw new UnauthorizedException("Angel One login failed");
             }
 
         } catch (JSONException e) {
@@ -146,8 +144,7 @@ public class AngelOneService implements BrokerService {
         AngelOneAccount account = getAccountByAppUserId(appUserId);
 
         if (account.getRefreshToken() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "No refresh token available. Please login again.");
+            throw new UnauthorizedException("No refresh token available. Please login again.");
         }
 
         try {
@@ -180,11 +177,10 @@ public class AngelOneService implements BrokerService {
 
                     return angelOneRepo.save(account);
                 } else {
-                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                            "Token refresh failed: " + responseJson.getString("message"));
+                    throw new UnauthorizedException("Token refresh failed: " + responseJson.getString("message"));
                 }
             } else {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token refresh failed");
+                throw new UnauthorizedException("Token refresh failed");
             }
 
         } catch (JSONException e) {
@@ -228,8 +224,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch profile from Angel One");
+                throw new RuntimeException("Failed to fetch profile from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One profile response", e);
@@ -252,8 +247,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch holdings from Angel One");
+                throw new RuntimeException("Failed to fetch holdings from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One holdings response", e);
@@ -276,8 +270,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch positions from Angel One");
+                throw new RuntimeException("Failed to fetch positions from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One positions response", e);
@@ -300,8 +293,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch orders from Angel One");
+                throw new RuntimeException("Failed to fetch orders from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One orders response", e);
@@ -332,8 +324,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch historical data from Angel One");
+                throw new RuntimeException("Failed to fetch historical data from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One historical data response", e);
@@ -362,8 +353,7 @@ public class AngelOneService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch LTP data from Angel One");
+                throw new RuntimeException("Failed to fetch LTP data from Angel One");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Angel One LTP data response", e);

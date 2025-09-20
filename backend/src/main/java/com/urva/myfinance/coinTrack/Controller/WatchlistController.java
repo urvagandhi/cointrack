@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.urva.myfinance.coinTrack.Model.Watchlist;
 import com.urva.myfinance.coinTrack.Service.WatchlistService;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
 
 @RestController
 @RequestMapping("/api/watchlists")
@@ -39,22 +40,14 @@ public class WatchlistController {
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getUserWatchlists(@RequestParam String userId) {
-        try {
-            List<Watchlist> watchlists = watchlistService.getUserWatchlists(userId);
+        List<Watchlist> watchlists = watchlistService.getUserWatchlists(userId);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", Map.of(
-                            "watchlists", watchlists,
-                            "count", watchlists.size()),
-                    "message", "Watchlists retrieved successfully"));
-        } catch (Exception e) {
-            logger.error("Error fetching watchlists for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to fetch watchlists: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", Map.of(
+                        "watchlists", watchlists,
+                        "count", watchlists.size()),
+                "message", "Watchlists retrieved successfully"));
     }
 
     /**
@@ -63,27 +56,16 @@ public class WatchlistController {
      */
     @GetMapping("/{watchlistId}")
     public ResponseEntity<Map<String, Object>> getWatchlist(@PathVariable String watchlistId) {
-        try {
-            Optional<Watchlist> watchlistOpt = watchlistService.getWatchlistById(watchlistId);
+        Optional<Watchlist> watchlistOpt = watchlistService.getWatchlistById(watchlistId);
 
-            if (watchlistOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of(
-                                "status", "error",
-                                "message", "Watchlist not found"));
-            }
-
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", watchlistOpt.get(),
-                    "message", "Watchlist retrieved successfully"));
-        } catch (Exception e) {
-            logger.error("Error fetching watchlist {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to fetch watchlist: " + e.getMessage()));
+        if (watchlistOpt.isEmpty()) {
+            throw new ResourceNotFoundException("Watchlist", watchlistId);
         }
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlistOpt.get(),
+                "message", "Watchlist retrieved successfully"));
     }
 
     /**
@@ -92,20 +74,12 @@ public class WatchlistController {
      */
     @GetMapping("/{watchlistId}/market-data")
     public ResponseEntity<Map<String, Object>> getWatchlistWithMarketData(@PathVariable String watchlistId) {
-        try {
-            Map<String, Object> watchlistData = watchlistService.getWatchlistWithMarketData(watchlistId);
+        Map<String, Object> watchlistData = watchlistService.getWatchlistWithMarketData(watchlistId);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", watchlistData,
-                    "message", "Watchlist with market data retrieved successfully"));
-        } catch (Exception e) {
-            logger.error("Error fetching watchlist with market data {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to fetch watchlist with market data: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlistData,
+                "message", "Watchlist with market data retrieved successfully"));
     }
 
     /**
@@ -114,25 +88,16 @@ public class WatchlistController {
      */
     @PostMapping
     public ResponseEntity<Map<String, Object>> createWatchlist(@RequestBody CreateWatchlistRequest request) {
-        try {
-            Watchlist watchlist = watchlistService.createWatchlist(
-                    request.getUserId(),
-                    request.getName(),
-                    request.getDescription(),
-                    request.getColor());
+        Watchlist watchlist = watchlistService.createWatchlist(
+                request.getUserId(),
+                request.getName(),
+                request.getDescription(),
+                request.getColor());
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(Map.of(
-                            "status", "success",
-                            "data", watchlist,
-                            "message", "Watchlist created successfully"));
-        } catch (Exception e) {
-            logger.error("Error creating watchlist: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to create watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlist,
+                "message", "Watchlist created successfully"));
     }
 
     /**
@@ -143,29 +108,16 @@ public class WatchlistController {
     public ResponseEntity<Map<String, Object>> updateWatchlist(
             @PathVariable String watchlistId,
             @RequestBody UpdateWatchlistRequest request) {
-        try {
-            Watchlist watchlist = watchlistService.updateWatchlist(
-                    watchlistId,
-                    request.getName(),
-                    request.getDescription(),
-                    request.getColor());
+        Watchlist watchlist = watchlistService.updateWatchlist(
+                watchlistId,
+                request.getName(),
+                request.getDescription(),
+                request.getColor());
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", watchlist,
-                    "message", "Watchlist updated successfully"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Error updating watchlist {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to update watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlist,
+                "message", "Watchlist updated successfully"));
     }
 
     /**
@@ -174,19 +126,11 @@ public class WatchlistController {
      */
     @DeleteMapping("/{watchlistId}")
     public ResponseEntity<Map<String, Object>> deleteWatchlist(@PathVariable String watchlistId) {
-        try {
-            watchlistService.deleteWatchlist(watchlistId);
+        watchlistService.deleteWatchlist(watchlistId);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "message", "Watchlist deleted successfully"));
-        } catch (Exception e) {
-            logger.error("Error deleting watchlist {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to delete watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Watchlist deleted successfully"));
     }
 
     /**
@@ -197,32 +141,19 @@ public class WatchlistController {
     public ResponseEntity<Map<String, Object>> addSymbolToWatchlist(
             @PathVariable String watchlistId,
             @RequestBody AddSymbolRequest request) {
-        try {
-            Watchlist watchlist = watchlistService.addSymbolToWatchlist(
-                    watchlistId,
-                    request.getSymbol(),
-                    request.getExchange(),
-                    request.getTradingSymbol(),
-                    request.getAlertPrice(),
-                    request.getAlertType(),
-                    request.getNotes());
+        Watchlist watchlist = watchlistService.addSymbolToWatchlist(
+                watchlistId,
+                request.getSymbol(),
+                request.getExchange(),
+                request.getTradingSymbol(),
+                request.getAlertPrice(),
+                request.getAlertType(),
+                request.getNotes());
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", watchlist,
-                    "message", "Symbol added to watchlist successfully"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Error adding symbol to watchlist {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to add symbol to watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlist,
+                "message", "Symbol added to watchlist successfully"));
     }
 
     /**
@@ -234,25 +165,12 @@ public class WatchlistController {
             @PathVariable String watchlistId,
             @PathVariable String symbol,
             @PathVariable String exchange) {
-        try {
-            Watchlist watchlist = watchlistService.removeSymbolFromWatchlist(watchlistId, symbol, exchange);
+        Watchlist watchlist = watchlistService.removeSymbolFromWatchlist(watchlistId, symbol, exchange);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "data", watchlist,
-                    "message", "Symbol removed from watchlist successfully"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Error removing symbol from watchlist {}: {}", watchlistId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to remove symbol from watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", watchlist,
+                "message", "Symbol removed from watchlist successfully"));
     }
 
     /**
@@ -263,24 +181,11 @@ public class WatchlistController {
     public ResponseEntity<Map<String, Object>> setDefaultWatchlist(
             @PathVariable String watchlistId,
             @RequestParam String userId) {
-        try {
-            watchlistService.setDefaultWatchlist(userId, watchlistId);
+        watchlistService.setDefaultWatchlist(userId, watchlistId);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "message", "Default watchlist updated successfully"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Error setting default watchlist for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "status", "error",
-                            "message", "Failed to set default watchlist: " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Default watchlist updated successfully"));
     }
 
     // DTO Classes

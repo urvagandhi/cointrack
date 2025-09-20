@@ -15,10 +15,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.urva.myfinance.coinTrack.Model.UpstoxAccount;
 import com.urva.myfinance.coinTrack.Repository.UpstoxAccountRepository;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
+import com.urva.myfinance.coinTrack.UnauthorizedException;
 
 @Service
 public class UpstoxService implements BrokerService {
@@ -47,7 +48,7 @@ public class UpstoxService implements BrokerService {
      */
     public UpstoxAccount getAccountByAppUserId(String appUserId) {
         return upstoxRepo.findByAppUserId(appUserId)
-                .orElseThrow(() -> new RuntimeException("No Upstox account for user: " + appUserId));
+                .orElseThrow(() -> new ResourceNotFoundException("UpstoxAccount", appUserId));
     }
 
     /**
@@ -70,8 +71,7 @@ public class UpstoxService implements BrokerService {
         UpstoxAccount account = getAccountByAppUserId(appUserId);
 
         if (account.getUpstoxApiKey() == null || account.getUpstoxRedirectUri() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Upstox API key or redirect URI not set for user.");
+            throw new IllegalArgumentException("Upstox API key or redirect URI not set for user.");
         }
 
         String state = "user_" + appUserId; // State parameter for security
@@ -96,8 +96,7 @@ public class UpstoxService implements BrokerService {
             String redirectUri = account.getUpstoxRedirectUri();
 
             if (apiKey == null || apiSecret == null || redirectUri == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Upstox API credentials not properly set for user.");
+                throw new IllegalArgumentException("Upstox API credentials not properly set for user.");
             }
 
             // Prepare token exchange request
@@ -150,11 +149,10 @@ public class UpstoxService implements BrokerService {
 
                     return upstoxRepo.save(account);
                 } else {
-                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                            "Upstox token exchange failed: " + responseJson.optString("message", "Unknown error"));
+                    throw new UnauthorizedException("Upstox token exchange failed: " + responseJson.optString("message", "Unknown error"));
                 }
             } else {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Upstox token exchange failed");
+                throw new UnauthorizedException("Upstox token exchange failed");
             }
 
         } catch (JSONException e) {
@@ -200,8 +198,7 @@ public class UpstoxService implements BrokerService {
      */
     private HttpHeaders getAuthenticatedHeaders(UpstoxAccount account) throws IOException {
         if (isTokenExpired(account)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Upstox token expired. Please re-authenticate.");
+            throw new UnauthorizedException("Upstox token expired. Please re-authenticate.");
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -227,8 +224,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch profile from Upstox");
+                throw new RuntimeException("Failed to fetch profile from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox profile response", e);
@@ -251,8 +247,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch holdings from Upstox");
+                throw new RuntimeException("Failed to fetch holdings from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox holdings response", e);
@@ -275,8 +270,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch positions from Upstox");
+                throw new RuntimeException("Failed to fetch positions from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox positions response", e);
@@ -299,8 +293,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch orders from Upstox");
+                throw new RuntimeException("Failed to fetch orders from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox orders response", e);
@@ -327,8 +320,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch historical data from Upstox");
+                throw new RuntimeException("Failed to fetch historical data from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox historical data response", e);
@@ -353,8 +345,7 @@ public class UpstoxService implements BrokerService {
                 JSONObject responseJson = new JSONObject(response.getBody());
                 return responseJson.toMap();
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to fetch LTP data from Upstox");
+                throw new RuntimeException("Failed to fetch LTP data from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox LTP data response", e);
@@ -382,8 +373,7 @@ public class UpstoxService implements BrokerService {
                 account.setIsActive(false);
                 upstoxRepo.save(account);
             } else {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to logout from Upstox");
+                throw new RuntimeException("Failed to logout from Upstox");
             }
         } catch (JSONException e) {
             throw new IOException("Error parsing Upstox logout response", e);

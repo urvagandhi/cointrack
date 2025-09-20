@@ -24,6 +24,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.urva.myfinance.coinTrack.DTO.StandardizedDataResponse;
 import com.urva.myfinance.coinTrack.Model.LiveMarketData;
+import com.urva.myfinance.coinTrack.ResourceNotFoundException;
 import com.urva.myfinance.coinTrack.Service.BrokerService;
 import com.urva.myfinance.coinTrack.Service.DataStandardizationService;
 import com.urva.myfinance.coinTrack.Service.WebSocketService;
@@ -56,38 +57,30 @@ public class MarketDataController {
             @PathVariable String symbol,
             @RequestParam(required = false) String exchange) {
 
-        try {
-            LiveMarketData marketData = webSocketService.getLatestMarketData(symbol);
+        LiveMarketData marketData = webSocketService.getLatestMarketData(symbol);
 
-            if (marketData == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // Convert to standardized market data
-            StandardizedDataResponse.MarketData standardizedData = new StandardizedDataResponse.MarketData();
-            standardizedData.setSymbol(symbol);
-            standardizedData.setExchange(exchange != null ? exchange : "NSE");
-            standardizedData.setLtp(marketData.getLtp());
-            standardizedData.setOpen(marketData.getOpen());
-            standardizedData.setHigh(marketData.getHigh());
-            standardizedData.setLow(marketData.getLow());
-            standardizedData.setClose(marketData.getClose());
-            standardizedData.setVolume(marketData.getVolume());
-            standardizedData.setTimestamp(marketData.getTimestamp());
-            standardizedData.setBrokerSource("websocket");
-
-            StandardizedDataResponse<StandardizedDataResponse.MarketData> response = StandardizedDataResponse
-                    .success(standardizedData, "market_data", "websocket");
-            response.setTimestamp(LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error fetching market data for symbol: {}", symbol, e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to fetch market data: " + e.getMessage(), "websocket");
-            return ResponseEntity.status(500).body(errorResponse);
+        if (marketData == null) {
+            throw new ResourceNotFoundException("Market data", symbol);
         }
+
+        // Convert to standardized market data
+        StandardizedDataResponse.MarketData standardizedData = new StandardizedDataResponse.MarketData();
+        standardizedData.setSymbol(symbol);
+        standardizedData.setExchange(exchange != null ? exchange : "NSE");
+        standardizedData.setLtp(marketData.getLtp());
+        standardizedData.setOpen(marketData.getOpen());
+        standardizedData.setHigh(marketData.getHigh());
+        standardizedData.setLow(marketData.getLow());
+        standardizedData.setClose(marketData.getClose());
+        standardizedData.setVolume(marketData.getVolume());
+        standardizedData.setTimestamp(marketData.getTimestamp());
+        standardizedData.setBrokerSource("websocket");
+
+        StandardizedDataResponse<StandardizedDataResponse.MarketData> response = StandardizedDataResponse
+                .success(standardizedData, "market_data", "websocket");
+        response.setTimestamp(LocalDateTime.now());
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -99,40 +92,32 @@ public class MarketDataController {
             @RequestParam String symbols,
             @RequestParam(required = false) String exchange) {
 
-        try {
-            String[] symbolList = symbols.split(",");
-            List<StandardizedDataResponse.MarketData> marketDataList = new java.util.ArrayList<>();
+        String[] symbolList = symbols.split(",");
+        List<StandardizedDataResponse.MarketData> marketDataList = new java.util.ArrayList<>();
 
-            for (String symbol : symbolList) {
-                LiveMarketData data = webSocketService.getLatestMarketData(symbol.trim());
-                if (data != null) {
-                    StandardizedDataResponse.MarketData standardizedData = new StandardizedDataResponse.MarketData();
-                    standardizedData.setSymbol(symbol.trim());
-                    standardizedData.setExchange(exchange != null ? exchange : "NSE");
-                    standardizedData.setLtp(data.getLtp());
-                    standardizedData.setOpen(data.getOpen());
-                    standardizedData.setHigh(data.getHigh());
-                    standardizedData.setLow(data.getLow());
-                    standardizedData.setClose(data.getClose());
-                    standardizedData.setVolume(data.getVolume());
-                    standardizedData.setTimestamp(data.getTimestamp());
-                    standardizedData.setBrokerSource("websocket");
-                    marketDataList.add(standardizedData);
-                }
+        for (String symbol : symbolList) {
+            LiveMarketData data = webSocketService.getLatestMarketData(symbol.trim());
+            if (data != null) {
+                StandardizedDataResponse.MarketData standardizedData = new StandardizedDataResponse.MarketData();
+                standardizedData.setSymbol(symbol.trim());
+                standardizedData.setExchange(exchange != null ? exchange : "NSE");
+                standardizedData.setLtp(data.getLtp());
+                standardizedData.setOpen(data.getOpen());
+                standardizedData.setHigh(data.getHigh());
+                standardizedData.setLow(data.getLow());
+                standardizedData.setClose(data.getClose());
+                standardizedData.setVolume(data.getVolume());
+                standardizedData.setTimestamp(data.getTimestamp());
+                standardizedData.setBrokerSource("websocket");
+                marketDataList.add(standardizedData);
             }
-
-            StandardizedDataResponse<List<StandardizedDataResponse.MarketData>> response = StandardizedDataResponse
-                    .success(marketDataList, "market_data", "websocket");
-            response.setTimestamp(LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error fetching batch market data", e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to fetch batch market data: " + e.getMessage(), "websocket");
-            return ResponseEntity.status(500).body(errorResponse);
         }
+
+        StandardizedDataResponse<List<StandardizedDataResponse.MarketData>> response = StandardizedDataResponse
+                .success(marketDataList, "market_data", "websocket");
+        response.setTimestamp(LocalDateTime.now());
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -175,39 +160,29 @@ public class MarketDataController {
      */
     @PostMapping("/live/subscribe")
     public ResponseEntity<StandardizedDataResponse<?>> subscribeToSymbols(@RequestBody Map<String, Object> request) {
-        try {
-            String symbols = (String) request.get("symbols");
+        String symbols = (String) request.get("symbols");
 
-            if (symbols == null || symbols.isEmpty()) {
-                StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                        .error("Symbols parameter is required", "websocket");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-
-            String[] symbolList = symbols.split(",");
-
-            // Subscribe to symbols in WebSocket service
-            for (String symbol : symbolList) {
-                webSocketService.subscribe(symbol.trim());
-            }
-
-            Map<String, Object> result = Map.of(
-                    "message", "Subscription request received",
-                    "symbols_requested", symbolList.length,
-                    "active_connections", activeEmitters.size());
-
-            StandardizedDataResponse<Map<String, Object>> response = StandardizedDataResponse.success(result,
-                    "subscription", "websocket");
-            response.setTimestamp(LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error subscribing to symbols", e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to subscribe to symbols: " + e.getMessage(), "websocket");
-            return ResponseEntity.status(500).body(errorResponse);
+        if (symbols == null || symbols.isEmpty()) {
+            throw new IllegalArgumentException("Symbols parameter is required");
         }
+
+        String[] symbolList = symbols.split(",");
+
+        // Subscribe to symbols in WebSocket service
+        for (String symbol : symbolList) {
+            webSocketService.subscribe(symbol.trim());
+        }
+
+        Map<String, Object> result = Map.of(
+                "message", "Subscription request received",
+                "symbols_requested", symbolList.length,
+                "active_connections", activeEmitters.size());
+
+        StandardizedDataResponse<Map<String, Object>> response = StandardizedDataResponse.success(result,
+                "subscription", "websocket");
+        response.setTimestamp(LocalDateTime.now());
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -216,23 +191,15 @@ public class MarketDataController {
      */
     @GetMapping("/live/status")
     public ResponseEntity<StandardizedDataResponse<?>> getWebSocketStatus() {
-        try {
-            Map<String, Object> status = webSocketService.getConnectionStatus();
-            status.put("active_sse_connections", activeEmitters.size());
-            status.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        Map<String, Object> status = webSocketService.getConnectionStatus();
+        status.put("active_sse_connections", activeEmitters.size());
+        status.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
-            StandardizedDataResponse<Map<String, Object>> response = StandardizedDataResponse.success(status, "status",
-                    "websocket");
-            response.setTimestamp(LocalDateTime.now());
+        StandardizedDataResponse<Map<String, Object>> response = StandardizedDataResponse.success(status, "status",
+                "websocket");
+        response.setTimestamp(LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting WebSocket status", e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to get status: " + e.getMessage(), "websocket");
-            return ResponseEntity.status(500).body(errorResponse);
-        }
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -249,17 +216,14 @@ public class MarketDataController {
             @RequestParam(defaultValue = "NSE") String exchange,
             @RequestParam(defaultValue = "angelone") String source) {
 
-        try {
-            logger.info(
-                    "Historical data request for symbol: {}, interval: {}, from: {}, to: {}, exchange: {}, source: {}",
-                    symbol, interval, from, to, exchange, source);
+        logger.info(
+                "Historical data request for symbol: {}, interval: {}, from: {}, to: {}, exchange: {}, source: {}",
+                symbol, interval, from, to, exchange, source);
 
-            BrokerService brokerService = brokerServices.get(source.toLowerCase());
-            if (brokerService == null) {
-                StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                        .error("Unsupported broker: " + source, source);
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
+        BrokerService brokerService = brokerServices.get(source.toLowerCase());
+        if (brokerService == null) {
+            throw new ResourceNotFoundException("Broker", source);
+        }
 
             // Fetch historical data from broker
             Map<String, Object> historicalData = brokerService.getHistoricalData(
@@ -283,13 +247,6 @@ public class MarketDataController {
             response.setTimestamp(LocalDateTime.now());
 
             return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error fetching historical data for symbol: {}", symbol, e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to fetch historical data: " + e.getMessage(), source);
-            return ResponseEntity.status(500).body(errorResponse);
-        }
     }
 
     /**
@@ -298,29 +255,21 @@ public class MarketDataController {
      */
     @GetMapping("/history/intervals")
     public ResponseEntity<StandardizedDataResponse<?>> getAvailableIntervals() {
-        try {
-            List<Map<String, Object>> intervals = List.of(
-                    Map.of("value", "1m", "label", "1 Minute", "description", "1-minute candles"),
-                    Map.of("value", "5m", "label", "5 Minutes", "description", "5-minute candles"),
-                    Map.of("value", "15m", "label", "15 Minutes", "description", "15-minute candles"),
-                    Map.of("value", "30m", "label", "30 Minutes", "description", "30-minute candles"),
-                    Map.of("value", "1h", "label", "1 Hour", "description", "1-hour candles"),
-                    Map.of("value", "1d", "label", "1 Day", "description", "Daily candles"),
-                    Map.of("value", "1w", "label", "1 Week", "description", "Weekly candles"),
-                    Map.of("value", "1M", "label", "1 Month", "description", "Monthly candles"));
+        List<Map<String, Object>> intervals = List.of(
+                Map.of("value", "1m", "label", "1 Minute", "description", "1-minute candles"),
+                Map.of("value", "5m", "label", "5 Minutes", "description", "5-minute candles"),
+                Map.of("value", "15m", "label", "15 Minutes", "description", "15-minute candles"),
+                Map.of("value", "30m", "label", "30 Minutes", "description", "30-minute candles"),
+                Map.of("value", "1h", "label", "1 Hour", "description", "1-hour candles"),
+                Map.of("value", "1d", "label", "1 Day", "description", "Daily candles"),
+                Map.of("value", "1w", "label", "1 Week", "description", "Weekly candles"),
+                Map.of("value", "1M", "label", "1 Month", "description", "Monthly candles"));
 
-            StandardizedDataResponse<List<Map<String, Object>>> response = StandardizedDataResponse.success(intervals,
-                    "intervals", "system");
-            response.setTimestamp(LocalDateTime.now());
+        StandardizedDataResponse<List<Map<String, Object>>> response = StandardizedDataResponse.success(intervals,
+                "intervals", "system");
+        response.setTimestamp(LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting available intervals", e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to get intervals: " + e.getMessage(), "system");
-            return ResponseEntity.status(500).body(errorResponse);
-        }
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -329,25 +278,17 @@ public class MarketDataController {
      */
     @GetMapping("/exchanges")
     public ResponseEntity<StandardizedDataResponse<?>> getSupportedExchanges() {
-        try {
-            List<Map<String, Object>> exchanges = List.of(
-                    Map.of("value", "NSE", "label", "National Stock Exchange", "country", "India"),
-                    Map.of("value", "BSE", "label", "Bombay Stock Exchange", "country", "India"),
-                    Map.of("value", "MCX", "label", "Multi Commodity Exchange", "country", "India"),
-                    Map.of("value", "NCDEX", "label", "National Commodity & Derivatives Exchange", "country", "India"));
+        List<Map<String, Object>> exchanges = List.of(
+                Map.of("value", "NSE", "label", "National Stock Exchange", "country", "India"),
+                Map.of("value", "BSE", "label", "Bombay Stock Exchange", "country", "India"),
+                Map.of("value", "MCX", "label", "Multi Commodity Exchange", "country", "India"),
+                Map.of("value", "NCDEX", "label", "National Commodity & Derivatives Exchange", "country", "India"));
 
-            StandardizedDataResponse<List<Map<String, Object>>> response = StandardizedDataResponse.success(exchanges,
-                    "exchanges", "system");
-            response.setTimestamp(LocalDateTime.now());
+        StandardizedDataResponse<List<Map<String, Object>>> response = StandardizedDataResponse.success(exchanges,
+                "exchanges", "system");
+        response.setTimestamp(LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting supported exchanges", e);
-            StandardizedDataResponse<?> errorResponse = StandardizedDataResponse
-                    .error("Failed to get exchanges: " + e.getMessage(), "system");
-            return ResponseEntity.status(500).body(errorResponse);
-        }
+        return ResponseEntity.ok(response);
     }
 
     /**
