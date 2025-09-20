@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -59,9 +58,6 @@ public class WebSocketManager {
             // Start health monitoring
             scheduleHealthMonitoring();
 
-            // Start periodic refresh/resubscribe with jitter between 15-30 seconds
-            schedulePeriodicRefresh();
-
             isRunning = true;
             logger.info("WebSocket Manager initialized successfully");
 
@@ -71,42 +67,6 @@ public class WebSocketManager {
         } catch (Exception e) {
             logger.error("Failed to initialize WebSocket Manager", e);
         }
-    }
-
-    /**
-     * Schedule a periodic refresh that runs with jitter between 15 and 30 seconds.
-     * This helps keep subscriptions alive and can re-affirm symbol subscriptions
-     * in case of transient disconnects. Uses the existing scheduler.
-     */
-    private void schedulePeriodicRefresh() {
-        Runnable refreshTask = () -> {
-            try {
-                if (!isRunning) return;
-
-                // small jitter between 15 and 30 seconds
-                int jitterSeconds = ThreadLocalRandom.current().nextInt(15, 31);
-
-                logger.debug("Periodic subscription refresh starting (jitter {}s)", jitterSeconds);
-
-                // Re-affirm subscriptions by re-subscribing to all symbols (connector should dedupe)
-                for (String symbol : subscribedSymbols) {
-                    try {
-                        nseConnector.subscribe(symbol);
-                        bseConnector.subscribe(symbol);
-                    } catch (Exception ex) {
-                        logger.debug("Failed to refresh subscription for {}: {}", symbol, ex.getMessage());
-                    }
-                }
-
-            } catch (Exception e) {
-                logger.error("Periodic refresh failed", e);
-            }
-        };
-
-        // Schedule at fixed rate with initial delay chosen randomly in the same window
-        int initialDelay = ThreadLocalRandom.current().nextInt(1, 6);
-        scheduler.scheduleAtFixedRate(refreshTask, initialDelay, 20, TimeUnit.SECONDS);
-        logger.info("Scheduled periodic subscription refresh task (intended jitter 15-30s window)");
     }
 
     /**
@@ -214,7 +174,7 @@ public class WebSocketManager {
         scheduler.schedule(() -> {
             logger.info("Subscribing to default symbols...");
             subscribeToSymbols(defaultSymbols);
-        }, 1, TimeUnit.SECONDS);
+        }, 5, TimeUnit.SECONDS);
     }
 
     /**
@@ -248,7 +208,7 @@ public class WebSocketManager {
 
                 // Check for stale data
                 List<LiveMarketData> recentData = liveMarketDataRepository.findActiveSymbols(
-                        LocalDateTime.now().minusMinutes(1));
+                        LocalDateTime.now().minusMinutes(5));
 
                 if (recentData.isEmpty() && !subscribedSymbols.isEmpty()) {
                     logger.warn("No recent market data received, connections may be stale");
@@ -257,7 +217,7 @@ public class WebSocketManager {
             } catch (Exception e) {
                 logger.error("Health monitoring failed", e);
             }
-        }, 1, 1, TimeUnit.MINUTES); // Check every 11 minutes
+        }, 1, 5, TimeUnit.MINUTES); // Check every 5 minutes
     }
 
     /**
